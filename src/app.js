@@ -1,5 +1,5 @@
-import mongoose from "mongoose"
+import express from "express";
 
-const app = express()
+const app = express();
 
 export {app}
