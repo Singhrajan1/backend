@@ -18,7 +18,7 @@ router.route("/register").post(
     ]),
     registerUser
 )
-
+console.log(registerUser)
 
 
 export default router;

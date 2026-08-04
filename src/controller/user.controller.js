@@ -1,7 +1,8 @@
 import {asyncHandler} from "../utils/asyncHandler.js"
-import {ApiError, apiError} from "../utils/apiError.js"
+import {ApiError} from "../utils/apiError.js"
 import {User} from "../model/user.model.js"
-
+import {uploadOnCloudinary} from "../utils/cloudinary.js"
+import {ApiResponse} from "../utils/apiResponse.js"
 
     // get user details from frontend
     // validation - not empty
@@ -35,6 +36,41 @@ const registerUser= asyncHandler( async(req,res) => {
     }
 
     console.log(req.files);
+
+    const avatarLocalPath = req.files?.avatar[0]?.path;
+
+    const coverImageLocalPath  = req.files?.coverImage[0]?.path;
+
+    if(!avatarLocalPath){
+        throw new ApiError(400,"avatar field should not be empty")
+    }
+
+    const avatar = await uploadOnCloudinary(avatarLocalPath)
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+
+    if(!avatar) throw new ApiError(400,"avatar file is required")
+
+    const user = await User.create({
+        fullname,
+        avatar : avatar.url,
+        coverImage : coverImage?.url || "",
+        username : username.toLowerCase(),
+        email,
+        password
+    })
+
+    const UserCreated =  await User.findById(user._id).select(
+        "-password -refreshToken"
+    )
+
+    if(!UserCreated){
+        throw new ApiError(500,"Something want error")
+    }
+
+    return  res.status(200).json(
+        new ApiResponse(200,UserCreated,"User registered successfully")
+    )
+
 })
 
 export {registerUser}
