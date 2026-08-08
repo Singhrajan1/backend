@@ -13,6 +13,24 @@ import {ApiResponse} from "../utils/apiResponse.js"
     // remove password and refresh token field from response
     // check for user creation
     // return res
+
+
+const generateAccessAndRefereshTokens = async(userId) =>{
+    try {
+        const user = await User.findById(userId)
+        const accessToken = user.generateAccessToken()
+        const refreshToken = user.generateRefreshToken()
+
+        user.refreshToken = refreshToken
+        await user.save({ validateBeforeSave: false })
+
+        return {accessToken, refreshToken}
+
+
+    } catch (error) {
+        throw new ApiError(500, "Something went wrong while generating referesh and access token")
+    }
+}
  
 const registerUser= asyncHandler( async(req,res) => {
    const{fullname,email,username,password}=req.body
@@ -21,13 +39,14 @@ const registerUser= asyncHandler( async(req,res) => {
 //    if(fullname == ""){
 //         throw new ApiError(400,"fullname is required")
 //    }
+
     if(
         [fullname , email , username , password].some((field) =>field?.trim() === "")
     ){
         throw new ApiError(400,"All field is required");
     }
 
-    const existingUser = User.findOne({
+    const existingUser = await User.findOne({
         $or: [{email},{username}]
     })
 
@@ -35,7 +54,7 @@ const registerUser= asyncHandler( async(req,res) => {
         throw new ApiError(409,"User with this email or username already exists")
     }
 
-    console.log(req.files);
+    // console.log(req.files);`
 
     const avatarLocalPath = req.files?.avatar[0]?.path;
 
@@ -50,11 +69,11 @@ const registerUser= asyncHandler( async(req,res) => {
         throw new ApiError(400,"avatar field should not be empty")
     }
 
-    const avatar = await uploadOnCloudinary(avatarLocalPath)
     const coverImage = await uploadOnCloudinary(coverImageLocalPath)
-
+    const avatar = await uploadOnCloudinary(avatarLocalPath)
+    
     if(!avatar) throw new ApiError(400,"avatar file is required")
-
+        
     const user = await User.create({
         fullname,
         avatar : avatar.url,
@@ -63,6 +82,7 @@ const registerUser= asyncHandler( async(req,res) => {
         email,
         password
     })
+    console.log(user)
 
     const UserCreated =  await User.findById(user._id).select(
         "-password -refreshToken"
@@ -77,5 +97,54 @@ const registerUser= asyncHandler( async(req,res) => {
     )
 
 })
+
+
+const loginUser = asyncHandler(async(req , res)=>{
+    const {fullname,email,passowrd} = req.body
+
+    if(!username && !email){
+        throw new ApiError(400 , "username or emai is required" )
+    }
+
+    const user = await User.findOne({
+        $or: [{username},{email}]
+    })
+
+    if(!user){
+        throw new ApiError(404 , "User dose not required")
+    }
+    
+    const isPasswordValid = await user.isPasswordCorrect(passowrd)
+
+    if(!isPasswordValid){
+        throw new ApiError(401,"User credential is wrong")
+    }
+
+    const{accessToken,refreshToken} = await generateAccessAndRefereshTokens(user._id)
+
+    const loggedIn = await User.findById(user.id)
+    .select("-password - refreshToken")
+
+    const Option = {
+        httpOnly : true,
+        secure : true
+    }
+
+    return res
+    .status(200)
+    .cookie("accessToken",accessToken , option)
+    .cookie("refreshToken", refreshToken , option)
+    new ApiResponse(
+        200,
+        {
+            user: accessToken , loggedIn , refreshToken
+        },
+        "User logged in Successfully"
+    )
+
+
+})
+
+
 
 export {registerUser}
