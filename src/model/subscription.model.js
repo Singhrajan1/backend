@@ -1,24 +1,17 @@
 import mongoose, { schema } from "mongoose";
 
-const subscriptionSchema = new Schema({
-    name:{
-        type: String,
-        require: true,
-        lowercase: true,
-        index: true
+const subscriptionSchema = new Schema(
+  {
+    subscriber: {
+      type: Schema.Types.ObejectId,
+      ref: "User",
     },
-    description:{
-        type: String,
-        require: true
+    channel: {
+      type: Schema.Types.ObejectId,
+      ref: "User",
     },
-    videos:{
-        type: Schema.Types.ObejectId,
-        Ref: "Video"
-    },
-    owner:{
-        type: Schema.Types.ObjectId,
-        Ref: "User"
-    }
-}, { timestamp: true });
+  },
+  { timestamp: true },
+);
 
-const Subscription = mongoose.model("Subscription",subscriptionSchema)
+const Subscription = mongoose.model("Subscription", subscriptionSchema);
