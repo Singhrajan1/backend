@@ -247,7 +247,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 const getCurrentUser = asyncHandler(async (req, res) => {
   return res
     .status(200)
-    .json(200, req.user, "Current user fetched successfully");
+    .json(new ApiResponse(200, req.user, "Current user fetched successfully"));
 });
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
@@ -260,81 +260,90 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
   const user = User.findByIdAndUpdate(
     req.user?._id,
     {
-      $set:{
+      $set: {
         fullname,
-        email
-      }  
+        email,
+      },
     },
     {
-        new : true
-    }).select("-password")
+      new: true,
+    },
+  ).select("-password");
 
-    return res
+  return res
     .status(200)
-    .json(new ApiResponse(200,user , "account details has been updated successfully"))
+    .json(
+      new ApiResponse(
+        200,
+        user,
+        "account details has been updated successfully",
+      ),
+    );
 });
 
-const updateUserAvatar= asyncHandler(async(req,res)=>{
-  const avatarLocalPath = req.file?.path
+const updateUserAvatar = asyncHandler(async (req, res) => {
+  const avatarLocalPath = req.file?.path;
 
-  if(!avatarLocalPath){
-    throw new ApiError(400,"avatar is required")
+  if (!avatarLocalPath) {
+    throw new ApiError(400, "avatar is required");
   }
 
-  const avatar = await uploadOnCloudinary(avatarLocalPath)
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
 
-  if(!avatar.url){
-    throw new ApiError(400,"error occurered while uploading avatar to the cloudinary")
+  if (!avatar.url) {
+    throw new ApiError(
+      400,
+      "error occurered while uploading avatar to the cloudinary",
+    );
   }
 
   const user = await User.findByIdAndUpdate(
     req.body._id,
     {
-      avatar : avatar.url
+      avatar: avatar.url,
     },
     {
-      new : true
-    }
-  ).select("-password")
+      new: true,
+    },
+  ).select("-password");
 
   return res
-  .status(200)
-  .json(
-    new ApiResponse(200,user,"avatar has been updated successfully")
-  )
+    .status(200)
+    .json(new ApiResponse(200, user, "avatar has been updated successfully"));
+});
 
-})
+const updateUserCoverImage = asyncHandler(async (req, res) => {
+  const coverImageLocalPath = req.file?.path;
 
-const updateUserCoverImage= asyncHandler(async(req,res)=>{
-  const coverImageLocalPath = req.file?.path
-
-  if(!coverImageLocalPath){
-    throw new ApiError(400,"coverImage is required")
+  if (!coverImageLocalPath) {
+    throw new ApiError(400, "coverImage is required");
   }
 
-  const user = coverImage = await uploadOnCloudinary(coverImageLocalPath)
+  const user = (coverImage = await uploadOnCloudinary(coverImageLocalPath));
 
-  if(!avatar.url){
-    throw new ApiError(400,"error occurered while uploading coverImage to the cloudinary")
+  if (!avatar.url) {
+    throw new ApiError(
+      400,
+      "error occurered while uploading coverImage to the cloudinary",
+    );
   }
 
   await User.findByIdAndUpdate(
     req.body._id,
     {
-     coverImage : coverImage.url
+      coverImage: coverImage.url,
     },
     {
-      new : true
-    }
-  ).select("-password")
+      new: true,
+    },
+  ).select("-password");
 
   return res
-  .status(200)
-  .json(
-    new ApiResponse(200,user,"coverImage has been updated successfully")
-  )
-})
-  
+    .status(200)
+    .json(
+      new ApiResponse(200, user, "coverImage has been updated successfully"),
+    );
+});
 
 export {
   registerUser,
@@ -345,5 +354,5 @@ export {
   getCurrentUser,
   updateAccountDetails,
   updateUserAvatar,
-  updateUserCoverImage
+  updateUserCoverImage,
 };
