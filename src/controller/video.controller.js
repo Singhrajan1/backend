@@ -4,8 +4,9 @@ import { ApiResponse } from "../utils/apiResponse";
 import { User } from "../model/user.model";
 import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary";
 import { Video } from "../model/video.model";
+import { isValidObjectId } from "mongoose";
 
-//upload a video to the cloudinary using fs and multer
+//upload a video to the cloudinary using
 //check whether the video is uploaded or not
 //remove video
 //get All the video user has updated
@@ -46,21 +47,78 @@ const publishVideo = asyncHandler(async (req, res) => {
   }
 
   const video = await Video.create({
-        title,
-        description,
-        videoFile: videoUpload.url,
-        videoFilePublicId: videoUpload.public_id,
-        thumbnail: thumbnailUpload.url,
-        thumbnailPublicId: thumbnailUpload.public_id,
-        duration: videoUpload.duration,
-        owner: req.user._id,
-    });
+    title,
+    description,
+    videoFile: videoUpload.url,
+    videoFilePublicId: videoUpload.public_id,
+    thumbnail: thumbnailUpload.url,
+    thumbnailPublicId: thumbnailUpload.public_id,
+    duration: videoUpload.duration,
+    owner: req.user._id,
+  });
 
-    if(!video){
-        throw new ApiError(500,"Something has gone wrong while uploading the video")
-    }
+  if (!video) {
+    throw new ApiError(
+      500,
+      "Something has gone wrong while uploading the video",
+    );
+  }
 
-    return res.status(200).json(new ApiResponse(200,"video uploaded successfully"))
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "video uploaded successfully"));
 });
 
-export {publishVideo}
+const getVideoById = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+
+  if (!mongoose.isValidObjectId(videoId)) {
+    throw new ApiError(400, "Invalid videoId");
+  }
+
+  const video = Video.findById(videoId).populate(
+    "owner",
+    "fullname email username",
+  );
+
+  if (!video) {
+    throw new ApiError(500, "Video not found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, video, "Video found successfully"));
+});
+
+const removeVideo = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+
+  if (!mongoose.isValidObjectId(videoId)) {
+    throw new ApiError(400, "Invalid videoId");
+  }
+
+  const video = await Video.findById(videoId);
+
+  if (!video) {
+    throw new ApiError(404, "Video not found");
+  }
+
+  if (video.owner.toString() != req.user._id.toString()) {
+    throw new ApiError(500, "you are not authorized to delete this video");
+  }
+
+  const deleteVideo = await Video.findByIdAndDelete(videoId);
+
+  if (!deleteVideo) {
+    throw new ApiError(500, "Something went wrong while deleting the video");
+  }
+
+  await deleteFromCloudinary(video.videoFilePublicId, "video");
+  await deleteFromCloudinary(video.thumbnailPublicId, "image");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Video deleted successfully"));
+});
+
+export { publishVideo, getVideoById, removeVideo };
