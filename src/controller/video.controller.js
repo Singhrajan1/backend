@@ -9,6 +9,7 @@ import { isValidObjectId } from "mongoose";
 //upload a video to the cloudinary using
 //check whether the video is uploaded or not
 //remove video
+//get id of the one video
 //get All the video user has updated
 
 const publishVideo = asyncHandler(async (req, res) => {
