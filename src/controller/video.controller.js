@@ -122,4 +122,7 @@ const removeVideo = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, "Video deleted successfully"));
 });
 
+const getAllVideo = asyncHandler(async(req,res)=>{
+})
+
 export { publishVideo, getVideoById, removeVideo };
