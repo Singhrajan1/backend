@@ -1,88 +1,112 @@
 import { asyncHandler } from "../utils/asyncHandler";
 import { ApiError } from "../utils/apiError";
 import { ApiResponse } from "../utils/apiResponse";
-import { User } from "../model/user.model";
 import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary";
 import { Video } from "../model/video.model";
 import { isValidObjectId } from "mongoose";
 
-//upload a video to the cloudinary using
-//check whether the video is uploaded or not
-//remove video
-//get All the video user has updated
+// Video Controller Workflow
+// 1. Upload video and thumbnail to Cloudinary
+// 2. Roll back Cloudinary uploads if any upload fails
+// 3. Create and save video details in MongoDB
+// 4. Get a single video using its videoId
+// 5. Delete a video after checking ownership
+// 6. Remove video and thumbnail from Cloudinary before deleting the database record
+// 7. Get all published videos with search, filtering, sorting and pagination
+// 8. Search videos by title and return matching videos
 
 const publishVideo = asyncHandler(async (req, res) => {
-  const { title, discription } = req.body;
+  const { title, description } = req.body;
 
-  if ([title, discription].some((field) => !field || field.trim() === "")) {
-    throw new ApiError(400, "title and discription are required");
+  if (!title?.trim() || !description?.trim()) {
+    throw new ApiError(400, "Title and description are required");
   }
 
   const videoLocalPath = req.files?.videoFile?.[0]?.path;
-  const thumnailLocalPath = req.files?.thumbnail?.[0]?.path;
+  const thumbnailLocalPath = req.files?.thumbnail?.[0]?.path;
 
-  if (!(videoLocalPath || thumnailLocalPath)) {
-    throw new ApiError(400, "video and thumbnail both are required");
+  if (!videoLocalPath || !thumbnailLocalPath) {
+    throw new ApiError(400, "Video and thumbnail are both required");
   }
 
   const videoUpload = await uploadOnCloudinary(videoLocalPath);
 
-  if (!videoUpload?.url) {
+  if (!videoUpload?.url || !videoUpload?.public_id) {
     throw new ApiError(500, "Failed to upload the video");
   }
 
   let thumbnailUpload;
+
   try {
-    thumbnailUpload = await uploadOnCloudinary(thumnailLocalPath);
-    if (!thumbnailUpload?.url) {
-      throw new ApiError(500, "Failed to upload the thumbnail");
+    thumbnailUpload = await uploadOnCloudinary(thumbnailLocalPath);
+
+    if (!thumbnailUpload?.url || !thumbnailUpload?.public_id) {
+      throw new Error("Thumbnail upload failed");
     }
   } catch (error) {
-    console.error("thumbnail upload failed", error);
-    await deleteFromCloudinary(videoUpload.public_id, "video");
+    console.error("Thumbnail upload failed:", error);
+
+    try {
+      await deleteFromCloudinary(videoUpload.public_id, "video");
+    } catch (cleanupError) {
+      console.error("Video rollback failed:", cleanupError);
+    }
+
     throw new ApiError(
       500,
-      "failed to upload the thumbnail so we have to roll back the video upload also",
+      "Failed to upload thumbnail. Video upload was rolled back",
     );
   }
 
-  const video = await Video.create({
-    title,
-    description,
-    videoFile: videoUpload.url,
-    videoFilePublicId: videoUpload.public_id,
-    thumbnail: thumbnailUpload.url,
-    thumbnailPublicId: thumbnailUpload.public_id,
-    duration: videoUpload.duration,
-    owner: req.user._id,
-  });
+  let video;
 
-  if (!video) {
-    throw new ApiError(
-      500,
-      "Something has gone wrong while uploading the video",
-    );
+  try {
+    video = await Video.create({
+      title: title.trim(),
+      description: description.trim(),
+
+      videoFile: videoUpload.url,
+      videoFilePublicId: videoUpload.public_id,
+
+      thumbnail: thumbnailUpload.url,
+      thumbnailPublicId: thumbnailUpload.public_id,
+
+      duration: videoUpload.duration,
+
+      owner: req.user._id,
+    });
+  } catch (error) {
+    console.error("Video creation failed:", error);
+
+    try {
+      await deleteFromCloudinary(videoUpload.public_id, "video");
+
+      await deleteFromCloudinary(thumbnailUpload.public_id, "image");
+    } catch (cleanupError) {
+      console.error("Cloudinary rollback failed:", cleanupError);
+    }
+
+    throw new ApiError(500, "Failed to create video in database");
   }
 
   return res
-    .status(200)
-    .json(new ApiResponse(200, "video uploaded successfully"));
+    .status(201)
+    .json(new ApiResponse(201, video, "Video uploaded successfully"));
 });
 
 const getVideoById = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
 
-  if (!mongoose.isValidObjectId(videoId)) {
-    throw new ApiError(400, "Invalid videoId");
+  if (!isValidObjectId(videoId)) {
+    throw new ApiError(400, "Invalid video ID");
   }
 
-  const video = Video.findById(videoId).populate(
-    "owner",
-    "fullname email username",
-  );
+  const video = await Video.findById(videoId)
+    .populate("owner", "fullname username avatar")
+    .lean();
 
   if (!video) {
-    throw new ApiError(500, "Video not found");
+    throw new ApiError(404, "Video not found");
   }
 
   return res
@@ -93,8 +117,8 @@ const getVideoById = asyncHandler(async (req, res) => {
 const removeVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
 
-  if (!mongoose.isValidObjectId(videoId)) {
-    throw new ApiError(400, "Invalid videoId");
+  if (!isValidObjectId(videoId)) {
+    throw new ApiError(400, "Invalid video ID");
   }
 
   const video = await Video.findById(videoId);
@@ -103,22 +127,110 @@ const removeVideo = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Video not found");
   }
 
-  if (video.owner.toString() != req.user._id.toString()) {
-    throw new ApiError(500, "you are not authorized to delete this video");
+  if (video.owner.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, "You are not authorized to delete this video");
   }
 
-  const deleteVideo = await Video.findByIdAndDelete(videoId);
+  try {
+    await deleteFromCloudinary(video.videoFilePublicId, "video");
 
-  if (!deleteVideo) {
-    throw new ApiError(500, "Something went wrong while deleting the video");
+    await deleteFromCloudinary(video.thumbnailPublicId, "image");
+  } catch (error) {
+    console.error("Cloudinary cleanup failed:", error);
+
+    throw new ApiError(500, "Failed to delete video files from Cloudinary");
   }
 
-  await deleteFromCloudinary(video.videoFilePublicId, "video");
-  await deleteFromCloudinary(video.thumbnailPublicId, "image");
+  const deletedVideo = await Video.findByIdAndDelete(videoId);
+
+  if (!deletedVideo) {
+    throw new ApiError(500, "Failed to delete the video from database");
+  }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, "Video deleted successfully"));
+    .json(new ApiResponse(200, null, "Video deleted successfully"));
 });
 
-export { publishVideo, getVideoById, removeVideo };
+const getAllVideo = asyncHandler(async (req, res) => {
+  const {
+    page = 1,
+    limit = 10,
+    query = "",
+    sortBy = "createdAt",
+    sortType = "desc",
+    userId,
+  } = req.query;
+
+  const filter = {
+    isPublished: true,
+  };
+
+  // Filter by user
+  if (userId) {
+    if (!isValidObjectId(userId)) {
+      throw new ApiError(400, "Invalid user ID");
+    }
+
+    filter.owner = userId;
+  }
+
+  // Search by video title
+  if (query.trim()) {
+    filter.title = {
+      $regex: query.trim(),
+      $options: "i",
+    };
+  }
+
+  // Allowed fields for sorting
+  const allowedSortFields = ["createdAt", "title", "views", "duration"];
+
+  if (!allowedSortFields.includes(sortBy)) {
+    throw new ApiError(400, "Invalid sort field");
+  }
+
+  // Pagination
+  const pageNumber = Math.max(1, parseInt(page, 10) || 1);
+
+  const limitNumber = Math.min(50, Math.max(1, parseInt(limit, 10) || 10));
+
+  const skip = (pageNumber - 1) * limitNumber;
+
+  // Sorting
+  const sortOrder = sortType === "asc" ? 1 : -1;
+
+  const [videos, totalVideos] = await Promise.all([
+    Video.find(filter)
+      .populate("owner", "fullname username avatar")
+      .sort({
+        [sortBy]: sortOrder,
+      })
+      .skip(skip)
+      .limit(limitNumber)
+      .lean(),
+
+    Video.countDocuments(filter),
+  ]);
+
+  const totalPages = Math.ceil(totalVideos / limitNumber);
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        videos,
+        totalVideos,
+        totalPages,
+        currentPage: pageNumber,
+
+        hasNextPage: pageNumber < totalPages,
+
+        hasPreviousPage: pageNumber > 1,
+      },
+      "Videos fetched successfully",
+    ),
+  );
+});
+
+export { publishVideo, getVideoById, removeVideo, getAllVideo };
