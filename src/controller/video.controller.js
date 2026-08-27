@@ -123,6 +123,8 @@ const removeVideo = asyncHandler(async (req, res) => {
 });
 
 const getAllVideo = asyncHandler(async(req,res)=>{
+
+  
 })
 
 export { publishVideo, getVideoById, removeVideo };
