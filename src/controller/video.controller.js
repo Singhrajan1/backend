@@ -13,10 +13,10 @@ import { isValidObjectId } from "mongoose";
 //get All the video user has updated
 
 const publishVideo = asyncHandler(async (req, res) => {
-  const { title, discription } = req.body;
+  const { title, description: description } = req.body;
 
-  if ([title, discription].some((field) => !field || field.trim() === "")) {
-    throw new ApiError(400, "title and discription are required");
+  if ([title, description].some((field) => !field || field.trim() === "")) {
+    throw new ApiError(400, "title and description are required");
   }
 
   const videoLocalPath = req.files?.videoFile?.[0]?.path;
@@ -123,6 +123,7 @@ const removeVideo = asyncHandler(async (req, res) => {
 });
 
 const getAllVideo = asyncHandler(async(req,res)=>{
+
 
   
 })
