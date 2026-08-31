@@ -64,6 +64,8 @@ const toggleSubscription = asyncHandler(async (req, res) => {
 
 export { toggleSubscription };
 
-const validateIsSubscriber = asyncHandler(async(req,res)=>{
+const getSubscriptionChannels = asyncHandler(async(req,res)=>{
+  const {loggesIn} = req.user._id
+
   
 })
