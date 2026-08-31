@@ -80,6 +80,7 @@ const getPlaylistId = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, playlist, "Succussfully fetched the playlist"));
 });
+
 const updatePlaylistDetails = asyncHandler(async (req, res) => {
   const { name, description } = req.body;
 

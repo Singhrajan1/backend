@@ -63,3 +63,7 @@ const toggleSubscription = asyncHandler(async (req, res) => {
 });
 
 export { toggleSubscription };
+
+const validateIsSubscriber = asyncHandler(async(req,res)=>{
+  
+})
