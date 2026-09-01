@@ -41,7 +41,7 @@ const toggleSubscription = asyncHandler(async (req, res) => {
 
   const existingSubscribion = await Subscription.findOne({
     subscriber,
-    channel: channelId
+    channel: channelId,
   });
 
   if (existingSubscribion) {
@@ -49,23 +49,89 @@ const toggleSubscription = asyncHandler(async (req, res) => {
 
     return res
       .status(200)
-      .json(new ApiResponse(200, { subscribed: false }, "Successfully unsubscribed to this channel"));
+      .json(
+        new ApiResponse(
+          200,
+          { subscribed: false },
+          "Successfully unsubscribed to this channel",
+        ),
+      );
   }
 
   await Subscription.create({
     subscriber,
-    channel: channelId
+    channel: channelId,
   });
 
   return res
     .status(200)
-    .json(new ApiResponse(200, { subscribed: true }, "Successfully subscribed"));
+    .json(
+      new ApiResponse(200, { subscribed: true }, "Successfully subscribed"),
+    );
 });
 
-export { toggleSubscription };
+const getSubscribedChannels = asyncHandler(async (req, res) => {
+  const subscriber = req.user._id;
 
-const getSubscriptionChannels = asyncHandler(async(req,res)=>{
-  const {loggesIn} = req.user._id
+  const subscribedChannels = await Subscription.find({ subscriber }).populate(
+    "channel",
+    "username avatar fullname",
+  );
 
-  
-})
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        subscribedChannels,
+        subscribedChannels.length === 0
+          ? "you haven't subscribed to any channel yet"
+          : "Successfully user subscribed channels",
+      ),
+    );
+});
+
+const getUserChannelSubscribers = asyncHandler(async (req, res) => {
+  // const user = req.user._id;
+
+  const { channelId } = req.params;
+
+  if(!isValidObjectId(channelId)){
+    throw new ApiError(400,"Invalid channel Id")
+  }
+
+  if (!req.user?._id?.equals(channelId)) {
+    const subscriberCount = await Subscription.countDocuments({ channel:channelId });
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          subscriberCount,
+          subscriberCount === 0
+            ? "the channel have zero subscriber"
+            : "Successfully fetched the subscriber count",
+        ),
+      );
+  }
+
+  const subscriberCount = await Subscription.find({channel:channelId}).populate(
+    "subscriber",
+    "username avatar",
+  );
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        subscriberCount,
+        subscriberCount.length === 0
+          ? "the channel have zero subscriber"
+          : "Successfully fetched the subscriber count",
+      ),
+    );
+});
+
+export { toggleSubscription, getSubscribedChannels, getUserChannelSubscribers };
