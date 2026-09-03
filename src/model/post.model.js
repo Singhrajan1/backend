@@ -1,6 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 
-const tweetSchema = new Schema(
+const postSchema = new Schema(
   {
     content: {
       type: String,
@@ -8,6 +8,18 @@ const tweetSchema = new Schema(
       trim: true,
       maxlength: 500,
     },
+
+    image: {
+      url: {
+        type: String,
+        required: true,
+      },
+      publicId: {
+        type: String,
+        required: true,
+      },
+    },
+
     owner: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -19,8 +31,8 @@ const tweetSchema = new Schema(
   }
 );
 
-tweetSchema.index({ owner: 1 });
+postSchema.index({ owner: 1 });
 
-const Tweet = mongoose.model("Tweet", tweetSchema);
+const Post = mongoose.model("Post", postSchema);
 
-export { Tweet };
+export { Post };
