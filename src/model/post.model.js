@@ -8,15 +8,12 @@ const postSchema = new Schema(
       trim: true,
       maxlength: 500,
     },
-
     image: {
       url: {
         type: String,
-        required: true,
       },
       publicId: {
         type: String,
-        required: true,
       },
     },
 
@@ -28,7 +25,7 @@ const postSchema = new Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 postSchema.index({ owner: 1 });

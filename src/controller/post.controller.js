@@ -1,10 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler";
 import { ApiError } from "../utils/apiError";
 import { ApiResponse } from "../utils/apiResponse";
-import {
-  deleteFromCloudinary,
-  uploadOnCloudinary,
-} from "../utils/cloudinary";
+import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary";
 import { Post } from "../model/post.model";
 import { isValidObjectId } from "mongoose";
 
@@ -49,7 +46,7 @@ const createPost = asyncHandler(async (req, res) => {
       try {
         await deleteFromCloudinary(imageUpload.public_id, "image");
       } catch (err) {
-        console.error("Image rollback failed:",err);
+        console.error("Image rollback failed:", err);
       }
     }
 
@@ -86,10 +83,6 @@ const updatePost = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid post ID");
   }
 
-  if (!content?.trim()) {
-    throw new ApiError(400, "Post content is required");
-  }
-
   const post = await Post.findById(postId);
 
   if (!post) {
@@ -112,7 +105,9 @@ const updatePost = asyncHandler(async (req, res) => {
     }
   }
 
-  post.content = content.trim();
+  if (content?.trim()) {
+    post.content = content.trim();
+  }
 
   if (imageUpload) {
     if (post.image?.publicId) {
@@ -149,23 +144,16 @@ const deletePost = asyncHandler(async (req, res) => {
     throw new ApiError(403, "You are not authorized to delete this post");
   }
 
-  if (post.image?.publicId) {
+  const imagePublicId = post.image?.publicId;
+
+  await post.deleteOne();
+
+  if (imagePublicId) {
     try {
-      await deleteFromCloudinary(post.image.publicId, "image");
+      await deleteFromCloudinary(imagePublicId, "image");
     } catch (error) {
-      console.error("Cloudinary cleanup failed:", error);
-
-      throw new ApiError(
-        500,
-        "Failed to delete post image from Cloudinary",
-      );
+      console.error("Cloudinary cleanup failed (orphaned file):", error);
     }
-  }
-
-  const deletedPost = await Post.findByIdAndDelete(postId);
-
-  if (!deletedPost) {
-    throw new ApiError(500, "Failed to delete the post from database");
   }
 
   return res
@@ -173,9 +161,4 @@ const deletePost = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, null, "Post deleted successfully"));
 });
 
-export {
-  createPost,
-  getUserPosts,
-  updatePost,
-  deletePost,
-}
+export { createPost, getUserPosts, updatePost, deletePost };
