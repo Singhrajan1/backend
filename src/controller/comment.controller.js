@@ -1,10 +1,10 @@
-import { ApiError } from "../utils/apiError";
-import { ApiResponse } from "../utils/apiResponse";
+import { asyncHandler } from "../utils/asynchandler.js";
+import { ApiError } from "../utils/apiError.js";
+import { ApiResponse } from "../utils/apiResponse.js";
 import { isValidObjectId } from "mongoose";
-import { Comment } from "../model/comments.model";
-import { Post } from "../model/post.model";
-import { Video } from "../model/video.model";
-import { asyncHandler } from "../utils/asyncHandler";
+import { Comment } from "../model/comments.model.js";
+import { Post } from "../model/post.model.js";
+import { Video } from "../model/video.model.js";
 
 // const createComment = asyncHandler(async (req, res) => {
 //   const { content } = req.body;
@@ -337,7 +337,6 @@ const updateComment = asyncHandler(async (req, res) => {
       )
     );
 });
-
 
 const deleteComment = asyncHandler(async (req, res) => {
   const { commentId } = req.params;
