@@ -7,6 +7,7 @@ import { Post } from "../model/post.model.js";
 import { Video } from "../model/video.model.js";
 import {Like} from "../model/likes.model.js";
 
+
 const toggleLike = asyncHandler(async (req, res) => {
   // === Step 1: figure out which target type this request is for ===
   // Design decision: are you using ONE route like /likes/toggle/:targetType/:targetId
