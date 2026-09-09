@@ -279,4 +279,8 @@ export {
   isVideoLikedByUser,
   isCommentLikedByUser,
   isPostLikedByUser
-};  
+};
+
+
+/*this marks the end of the controller and route journey and lets move to the next part where 
+ i will add kafka and redis and multiple other things in this learning project make use of all the things i am using */
