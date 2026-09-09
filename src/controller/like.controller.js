@@ -1,97 +1,273 @@
-import { asyncHandler } from "../utils/asynchandler.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { isValidObjectId } from "mongoose";
 import { Comment } from "../model/comments.model.js";
 import { Post } from "../model/post.model.js";
 import { Video } from "../model/video.model.js";
-import {Like} from "../model/likes.model.js";
-
-
-const toggleLike = asyncHandler(async (req, res) => {
-  // === Step 1: figure out which target type this request is for ===
-  // Design decision: are you using ONE route like /likes/toggle/:targetType/:targetId
-  //   (targetType = "video"|"comment"|"post" as a string, targetId = the actual id)
-  // OR three separate routes each hitting their own controller function?
-  // Given Option B schema (separate video/comment/post fields), THREE separate route params
-  // is cleaner and avoids string-based type switching. Recommend:
-  //   POST /likes/toggle/v/:videoId
-  //   POST /likes/toggle/c/:commentId
-  //   POST /likes/toggle/p/:postId
-  // -> meaning you likely write toggleVideoLike, toggleCommentLike, togglePostLike
-  //    as three separate functions with near-identical bodies (like getVideoComments/getPostComments)
-
-  // Below is ONE of the three (video) fully spelled out — mirror this exact shape for comment and post.
-});
+import { Like } from "../model/likes.model.js";
 
 
 const toggleVideoLike = asyncHandler(async (req, res) => {
-  // 1. Get videoId from req.params, validate with isValidObjectId
+  const { videoId } = req.params;
 
-  // 2. likedBy = req.user._id (never from body)
+  if (!isValidObjectId(videoId)) {
+    throw new ApiError(400, "Invalid video Id");
+  }
 
-  // 3. (optional) verify video exists — Video.findById(videoId), 404 if not
+  const videoExists = await Video.exists({ _id: videoId });
 
-  // 4. Check current state:
-  //    const existingLike = await Like.findOne({ likedBy, video: videoId })
+  if (!videoExists) {
+    throw new ApiError(404, "Video not found");
+  }
 
-  // 5. Branch:
-  //    a) existingLike exists -> await existingLike.deleteOne() -> respond { liked: false }
-  //    b) doesn't exist -> await Like.create({ likedBy, video: videoId }) -> respond { liked: true }
+  const likedBy = req.user._id;
 
-  // 6. Response with ApiResponse, correct status code (200 for both branches, or 
-  //    201 for the create branch — same debate as toggleSubscription, your call, be consistent)
+  const existingVideoLike = await Like.findOne({
+    likedBy,
+    video: videoId
+  });
+
+  if (existingVideoLike) {
+    await existingVideoLike.deleteOne();
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, { liked: false }, "Successfully unliked the video")
+      );
+  }
+
+  try {
+    await Like.create({ likedBy, video: videoId });
+  } catch (error) {
+    if (error.code === 11000) {
+      throw new ApiError(409, "Video already liked");
+    }
+    throw error;
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { liked: true }, "User has successfully liked this video")
+    );
 });
 
 
 const toggleCommentLike = asyncHandler(async (req, res) => {
-  // Exact same shape as toggleVideoLike, but:
-  // - param is commentId (from req.params)
-  // - (optional) existence check against Comment.findById(commentId)
-  // - filter/create use { likedBy, comment: commentId } instead of { video: videoId }
-  // - everything else (branch logic, response shape) identical
+  const { commentId } = req.params;
+
+  if (!isValidObjectId(commentId)) {
+    throw new ApiError(400, "Invalid comment Id");
+  }
+
+  const commentExists = await Comment.exists({ _id: commentId });
+
+  if (!commentExists) {
+    throw new ApiError(404, "Comment not found");
+  }
+
+  const likedBy = req.user._id;
+
+  const existingCommentLike = await Like.findOne({
+    likedBy,
+    comment: commentId
+  });
+
+  if (existingCommentLike) {
+    await existingCommentLike.deleteOne();
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, { liked: false }, "Successfully unliked the comment")
+      );
+  }
+
+  try {
+    await Like.create({ likedBy, comment: commentId });
+  } catch (error) {
+    if (error.code === 11000) {
+      throw new ApiError(409, "Comment already liked");
+    }
+    throw error;
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { liked: true }, "User has successfully liked this comment")
+    );
 });
 
 
 const togglePostLike = asyncHandler(async (req, res) => {
-  // Exact same shape again, but:
-  // - param is postId
-  // - (optional) existence check against Post.findById(postId)
-  // - filter/create use { likedBy, post: postId }
+  const { postId } = req.params;
+
+  if (!isValidObjectId(postId)) {
+    throw new ApiError(400, "Invalid post Id");
+  }
+
+  const postExists = await Post.exists({ _id: postId });
+
+  if (!postExists) {
+    throw new ApiError(404, "Post not found");
+  }
+
+  const likedBy = req.user._id;
+
+  const existingPostLike = await Like.findOne({
+    likedBy,
+    post: postId
+  });
+
+  if (existingPostLike) {
+    await existingPostLike.deleteOne();
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, { liked: false }, "Successfully unliked the Post")
+      );
+  }
+
+  try {
+    await Like.create({ likedBy, post: postId });
+  } catch (error) {
+    if (error.code === 11000) {
+      throw new ApiError(409, "Post already liked");
+    }
+    throw error;
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { liked: true }, "User has successfully liked this Post")
+    );
 });
 
-
-// === Public counts — anyone can see how many likes something has ===
 
 const getVideoLikesCount = asyncHandler(async (req, res) => {
-  // 1. videoId from req.params, validate
-  // 2. const count = await Like.countDocuments({ video: videoId })
-  // 3. respond with the number — no auth needed for this one
+  const { videoId } = req.params;
+
+  if (!isValidObjectId(videoId)) {
+    throw new ApiError(400, "Invalid video Id");
+  }
+
+  const videoExists = await Video.exists({ _id: videoId });
+
+  if (!videoExists) {
+    throw new ApiError(404, "Video not found");
+  }
+
+  const count = await Like.countDocuments({ video: videoId });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { count }, "Video likes count fetched successfully"));
 });
+
 
 const getCommentLikesCount = asyncHandler(async (req, res) => {
-  // same shape, filter by { comment: commentId }
+  const { commentId } = req.params;
+
+  if (!isValidObjectId(commentId)) {
+    throw new ApiError(400, "Invalid comment Id");
+  }
+
+  const commentExists = await Comment.exists({ _id: commentId });
+
+  if (!commentExists) {
+    throw new ApiError(404, "Comment not found");
+  }
+
+  const count = await Like.countDocuments({ comment: commentId });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { count }, "Comment likes count fetched successfully"));
 });
+
 
 const getPostLikesCount = asyncHandler(async (req, res) => {
-  // same shape, filter by { post: postId }
+  const { postId } = req.params;
+
+  if (!isValidObjectId(postId)) {
+    throw new ApiError(400, "Invalid post Id");
+  }
+
+  const postExists = await Post.exists({ _id: postId });
+
+  if (!postExists) {
+    throw new ApiError(404, "Post not found");
+  }
+
+  const count = await Like.countDocuments({ post: postId });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { count }, "Post likes count fetched successfully"));
 });
 
-
-// === Optional but common: "has the current logged-in user liked this?" ===
-// useful for frontend to show a filled vs outline heart icon on load
 
 const isVideoLikedByUser = asyncHandler(async (req, res) => {
-  // 1. videoId from req.params, validate
-  // 2. likedBy = req.user._id (this one DOES need auth, since it's asking about a specific user)
-  // 3. const existingLike = await Like.findOne({ likedBy, video: videoId })
-  // 4. respond with { liked: !!existingLike }
-  //    (!!existingLike converts a document-or-null into a clean true/false boolean —
-  //    think about why this works: !null is true, !!null is false; 
-  //    !someObject is false, !!someObject is true)
+  const { videoId } = req.params;
+
+  if (!isValidObjectId(videoId)) {
+    throw new ApiError(400, "Invalid video Id");
+  }
+
+  const likedBy = req.user._id;
+
+  const existingVideoLike = await Like.findOne({ likedBy, video: videoId });
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { liked: !!existingVideoLike }, "Video like status fetched successfully")
+    );
 });
 
-// same idea for comment/post if you want full parity — optional given time constraints
+
+const isCommentLikedByUser = asyncHandler(async (req, res) => {
+  const { commentId } = req.params;
+
+  if (!isValidObjectId(commentId)) {
+    throw new ApiError(400, "Invalid comment Id");
+  }
+
+  const likedBy = req.user._id;
+
+  const existingCommentLike = await Like.findOne({ likedBy, comment: commentId });
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { liked: !!existingCommentLike }, "Comment like status fetched successfully")
+    );
+});
+
+
+const isPostLikedByUser = asyncHandler(async (req, res) => {
+  const { postId } = req.params;
+
+  if (!isValidObjectId(postId)) {
+    throw new ApiError(400, "Invalid post Id");
+  }
+
+  const likedBy = req.user._id;
+
+  const existingPostLike = await Like.findOne({ likedBy, post: postId });
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { liked: !!existingPostLike }, "Post like status fetched successfully")
+    );
+});
+
 
 export {
   toggleVideoLike,
@@ -101,4 +277,6 @@ export {
   getCommentLikesCount,
   getPostLikesCount,
   isVideoLikedByUser,
-};
+  isCommentLikedByUser,
+  isPostLikedByUser
+};  
