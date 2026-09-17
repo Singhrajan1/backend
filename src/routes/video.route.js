@@ -7,7 +7,7 @@ import {
   getAllVideo,
 } from "../controller/video.controller.js";
 
-import { verifyUser } from "../middlewares/auth.middleware.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
@@ -15,7 +15,7 @@ const router = Router();
 router
   .route("/")
   .post(
-    verifyUser,
+    verifyJWT,
     upload.fields([
       { name: "videoFile", maxCount: 1 },
       { name: "thumbnail", maxCount: 1 },
@@ -24,6 +24,6 @@ router
   )
   .get(getAllVideo);
 
-router.route("/:videoId").get(getVideoById).delete(verifyUser, removeVideo);
+router.route("/:videoId").get(getVideoById).delete(verifyJWT, removeVideo);
 
 export default router;

@@ -1,8 +1,8 @@
-import { asyncHandler } from "../utils/asyncHandler";
-import { ApiError } from "../utils/apiError";
-import { ApiResponse } from "../utils/apiResponse";
-import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary";
-import { Post } from "../model/post.model";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/apiError.js";
+import { ApiResponse } from "../utils/apiResponse.js";
+import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
+import { Post } from "../model/post.model.js";
 import { isValidObjectId } from "mongoose";
 
 const createPost = asyncHandler(async (req, res) => {

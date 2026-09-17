@@ -16,11 +16,11 @@
 // 15. Check whether the current user has subscribed to a channel
 
 import { isValidObjectId } from "mongoose";
-import { ApiError } from "../utils/apiError";
-import { ApiResponse } from "../utils/apiResponse";
-import { asyncHandler } from "../utils/asyncHandler";
-import { User } from "../model/user.model";
-import { Subscription } from "../model/subscription.model";
+import { ApiError } from "../utils/apiError.js";
+import { ApiResponse } from "../utils/apiResponse.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { User } from "../model/user.model.js";
+import { Subscription } from "../model/subscription.model.js";
 
 const toggleSubscription = asyncHandler(async (req, res) => {
   const { channelId } = req.params;

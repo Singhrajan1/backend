@@ -6,7 +6,7 @@ import {
   getUserPosts,
   updatePost,
   deletePost,
-} from "../controllers/post.controller.js";
+} from "../controller/post.controller.js";
 
 const router = Router();
 

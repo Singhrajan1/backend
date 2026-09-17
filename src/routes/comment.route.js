@@ -6,7 +6,7 @@ import {
   getPostComments,
   updateComment,
   deleteComment,
-} from "../controllers/comment.controller.js";
+} from "../controller/comment.controller.js";
 
 const router = Router();
 

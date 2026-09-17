@@ -4,7 +4,7 @@ import {
   toggleSubscription,
   getSubscribedChannels,
   getUserChannelSubscribers,
-} from "../controllers/subscription.controller.js";
+} from "../controller/subscription.controller.js";
 
 const router = Router();
 

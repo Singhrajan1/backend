@@ -13,11 +13,11 @@
 // 12. Get playlist details along with its videos
 
 import { isValidObjectId } from "mongoose";
-import { Playlist } from "../model/playlist.model";
-import { ApiError } from "../utils/apiError";
-import { ApiResponse } from "../utils/apiResponse";
-import { asyncHandler } from "../utils/asyncHandler";
-import { Video } from "../model/video.model";
+import { Playlist } from "../model/playlist.model.js";
+import { ApiError } from "../utils/apiError.js";
+import { ApiResponse } from "../utils/apiResponse.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { Video } from "../model/video.model.js";
 
 const createPlaylist = asyncHandler(async (req, res) => {
   const { name, description } = req.body;
