@@ -4,6 +4,8 @@ import { ApiResponse } from "../utils/apiResponse.js";
 import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
 import { Video } from "../model/video.model.js";
 import { isValidObjectId } from "mongoose";
+import { Comment } from "../model/comments.model.js";
+import { Like } from "../model/likes.model.js";
 
 // Video Controller Workflow
 // 1. Upload video and thumbnail to Cloudinary
@@ -136,6 +138,9 @@ const removeVideo = asyncHandler(async (req, res) => {
   if (!deletedVideo) {
     throw new ApiError(500, "Failed to delete the video from database");
   }
+
+  await Like.deleteMany({ video: videoId });
+  await Comment.deleteMany({ video: videoId });
 
   try {
     await deleteFromCloudinary(

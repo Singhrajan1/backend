@@ -5,6 +5,7 @@ import { isValidObjectId } from "mongoose";
 import { Comment } from "../model/comments.model.js";
 import { Post } from "../model/post.model.js";
 import { Video } from "../model/video.model.js";
+import { Like } from "../model/likes.model.js";
 
 const getComments = async (filter, skip, limit) => {
   return await Comment.find(filter)
@@ -164,6 +165,8 @@ const deleteComment = asyncHandler(async (req, res) => {
   if (req.user._id.toString() !== comment.owner.toString()) {
     throw new ApiError(403, "You are not authorized to delete this comment");
   }
+
+  await Like.deleteMany({ comment: commentId });
 
   await comment.deleteOne();
 
