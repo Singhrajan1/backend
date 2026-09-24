@@ -39,13 +39,13 @@ const toggleSubscription = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Channel not found");
   }
 
-  const existingSubscribion = await Subscription.findOne({
+  const existingSubscription = await Subscription.findOne({
     subscriber,
     channel: channelId,
   });
 
-  if (existingSubscribion) {
-    await Subscription.findByIdAndDelete(existingSubscribion._id);
+  if (existingSubscription) {
+    await Subscription.findByIdAndDelete(existingSubscription._id);
 
     return res
       .status(200)
@@ -96,12 +96,12 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
 
   const { channelId } = req.params;
 
-  if(!isValidObjectId(channelId)){
-    throw new ApiError(400,"Invalid channel Id")
+  if (!isValidObjectId(channelId)) {
+    throw new ApiError(400, "Invalid channel Id")
   }
 
   if (!req.user?._id?.equals(channelId)) {
-    const subscriberCount = await Subscription.countDocuments({ channel:channelId });
+    const subscriberCount = await Subscription.countDocuments({ channel: channelId });
 
     return res
       .status(200)
@@ -116,7 +116,7 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
       );
   }
 
-  const subscriberCount = await Subscription.find({channel:channelId}).populate(
+  const subscriberCount = await Subscription.find({ channel: channelId }).populate(
     "subscriber",
     "username avatar",
   );

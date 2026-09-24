@@ -3,7 +3,7 @@ import { ApiError } from "../utils/apiError.js";
 import { User } from "../model/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/apiResponse.js";
-import jwt, { decode } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
 // get user details from frontend
@@ -134,8 +134,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     throw new ApiError(
       500,
-      `Registration failed while creating user: ${
-        error?.message || "Unknown database error"
+      `Registration failed while creating user: ${error?.message || "Unknown database error"
       }`,
     );
   }
@@ -268,7 +267,7 @@ const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "User logged Out"));
 });
 
-const refrshAccessToken = asyncHandler(async (req, res) => {
+const e = asyncHandler(async (req, res) => {
   const incomingRefreshToken =
     req.cookies?.refreshToken || req.body?.refreshToken;
 
@@ -330,7 +329,7 @@ const refrshAccessToken = asyncHandler(async (req, res) => {
         ),
       );
   } catch (error) {
-    console.error("refrshAccessToken error:", error);
+    console.error("e error:", error);
 
     if (error instanceof ApiError) {
       throw error;
@@ -338,8 +337,7 @@ const refrshAccessToken = asyncHandler(async (req, res) => {
 
     throw new ApiError(
       401,
-      `Refresh token failed: ${
-        error?.message || "Invalid or expired refresh token"
+      `Refresh token failed: ${error?.message || "Invalid or expired refresh token"
       }`,
     );
   }
@@ -689,7 +687,7 @@ export {
   registerUser,
   loginUser,
   logoutUser,
-  refrshAccessToken,
+  refreshAccessToken,
   changeCurrentPassword,
   getCurrentUser,
   updateAccountDetails,
