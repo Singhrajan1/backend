@@ -1,164 +1,239 @@
-import { asyncHandler } from "../utils/asyncHandler.js";
-import { ApiError } from "../utils/apiError.js";
-import { ApiResponse } from "../utils/apiResponse.js";
-import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
-import { Post } from "../model/post.model.js";
-import { isValidObjectId } from "mongoose";
+import { asyncHandler } from "../utils/asyncHandler.js"; 
+import { ApiError } from "../utils/apiError.js"; 
+import { ApiResponse } from "../utils/apiResponse.js"; 
+import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js"; 
+import { Post } from "../model/post.model.js"; 
+import { Comment } from "../model/comments.model.js";
+import { Like } from "../model/likes.model.js";
+import { isValidObjectId } from "mongoose"; 
+ 
+const createPost = asyncHandler(async (req, res) => { 
+  const { content } = req.body; 
+ 
+  if (!content?.trim()) { 
+    throw new ApiError(400, "Post content is required"); 
+  } 
+ 
+  const imageLocalPath = req.file?.path; 
+ 
+  let imageUpload; 
+ 
+  if (imageLocalPath) { 
+    imageUpload = await uploadOnCloudinary(imageLocalPath); 
+ 
+    if (!imageUpload?.url || !imageUpload?.public_id) { 
+      throw new ApiError(500, "Failed to upload the image"); 
+    } 
+  } 
+ 
+  let post; 
+ 
+  try { 
+    post = await Post.create({ 
+      content: content.trim(), 
+ 
+      image: imageUpload 
+        ? { 
+            url: imageUpload.url, 
+            publicId: imageUpload.public_id, 
+          } 
+        : undefined, 
+ 
+      owner: req.user._id, 
+    }); 
+  } catch (error) { 
+    console.error("Post creation failed:", error); 
+ 
+    if (imageUpload?.public_id) { 
+      try { 
+        await deleteFromCloudinary(imageUpload.public_id, "image"); 
+      } catch (err) { 
+        console.error("Image rollback failed:", err); 
+      } 
+    } 
+ 
+    throw new ApiError(500, "Failed to create post in database"); 
+  } 
+ 
+  return res 
+    .status(201) 
+    .json(new ApiResponse(201, post, "Post created successfully")); 
+}); 
+ 
+const getUserPosts = asyncHandler(async (req, res) => { 
+  const { userId } = req.params; 
+ 
+  if (!isValidObjectId(userId)) { 
+    throw new ApiError(400, "Invalid user ID"); 
+  } 
+ 
+  const posts = await Post.find({ owner: userId }) 
+    .populate("owner", "fullname username avatar") 
+    .sort({ createdAt: -1 }) 
+    .lean(); 
+ 
+  return res 
+    .status(200) 
+    .json(new ApiResponse(200, posts, "Posts fetched successfully")); 
+}); 
+ 
+// const updatePost = asyncHandler(async (req, res) => { 
+//   const { postId } = req.params; 
+//   const { content } = req.body; 
+ 
+//   if (!isValidObjectId(postId)) { 
+//     throw new ApiError(400, "Invalid post ID"); 
+//   } 
+ 
+//   const post = await Post.findById(postId); 
+ 
+//   if (!post) { 
+//     throw new ApiError(404, "Post not found"); 
+//   } 
+ 
+//   if (post.owner.toString() !== req.user._id.toString()) { 
+//     throw new ApiError(403, "You are not authorized to update this post"); 
+//   } 
+ 
+//   const imageLocalPath = req.file?.path; 
+ 
+//   let imageUpload; 
+ 
+//   if (imageLocalPath) { 
+//     imageUpload = await uploadOnCloudinary(imageLocalPath); 
+ 
+//     if (!imageUpload?.url || !imageUpload?.public_id) { 
+//       throw new ApiError(500, "Failed to upload the new image"); 
+//     } 
+//   } 
+ 
+//   if (content?.trim()) { 
+//     post.content = content.trim(); 
+//   } 
+ 
+//   if (imageUpload) { 
+//     if (post.image?.publicId) { 
+//       await deleteFromCloudinary(post.image.publicId, "image"); 
+//     } 
+ 
+//     post.image = { 
+//       url: imageUpload.url, 
+//       publicId: imageUpload.public_id, 
+//     }; 
+//   } 
+ 
+//   const updatedPost = await post.save(); 
+ 
+//   return res 
+//     .status(200) 
+//     .json(new ApiResponse(200, updatedPost, "Post updated successfully")); 
+// }); 
+ 
+const updatePost = asyncHandler(async (req, res) => { 
+  const { postId } = req.params; 
+  const { content } = req.body; 
+ 
+  if (!isValidObjectId(postId)) { 
+    throw new ApiError(400, "Invalid post ID"); 
+  } 
+ 
+  const post = await Post.findById(postId); 
+ 
+  if (!post) { 
+    throw new ApiError(404, "Post not found"); 
+  } 
+ 
+  if (post.owner.toString() !== req.user._id.toString()) { 
+    throw new ApiError(403, "You are not authorized to update this post"); 
+  } 
+ 
+  const imageLocalPath = req.file?.path; 
+ 
+  let imageUpload; 
+ 
+  if (imageLocalPath) { 
+    imageUpload = await uploadOnCloudinary(imageLocalPath); 
+ 
+    if (!imageUpload?.url || !imageUpload?.public_id) { 
+      throw new ApiError(500, "Failed to upload the new image"); 
+    } 
+  } 
+ 
+  const oldImagePublicId = post.image?.publicId; 
+ 
+  if (content?.trim()) { 
+    post.content = content.trim(); 
+  } 
+ 
+  if (imageUpload) { 
+    post.image = { 
+      url: imageUpload.url, 
+      publicId: imageUpload.public_id, 
+    }; 
+  } 
+ 
+  try { 
+    const updatedPost = await post.save(); 
+ 
+    if (imageUpload && oldImagePublicId) { 
+      try { 
+        await deleteFromCloudinary(oldImagePublicId, "image"); 
+      } catch (error) { 
+        console.error("Old image cleanup failed:", error); 
+      } 
+    } 
+ 
+    return res 
+      .status(200) 
+      .json(new ApiResponse(200, updatedPost, "Post updated successfully")); 
+  } catch (error) { 
+    if (imageUpload?.public_id) { 
+      try { 
+        await deleteFromCloudinary(imageUpload.public_id, "image"); 
+      } catch (err) { 
+        console.error("New image rollback failed:", err); 
+      } 
+    } 
+ 
+    throw new ApiError(500, "Failed to update post"); 
+  } 
+}); 
+ 
+const deletePost = asyncHandler(async (req, res) => { 
+  const { postId } = req.params; 
+ 
+  if (!isValidObjectId(postId)) { 
+    throw new ApiError(400, "Invalid post ID"); 
+  } 
+ 
+  const post = await Post.findById(postId); 
+ 
+  if (!post) { 
+    throw new ApiError(404, "Post not found"); 
+  } 
+ 
+  if (post.owner.toString() !== req.user._id.toString()) { 
+    throw new ApiError(403, "You are not authorized to delete this post"); 
+  } 
+ 
+  const imagePublicId = post.image?.publicId; 
+ 
+  await Like.deleteMany({ post: postId });
+  await Comment.deleteMany({ post: postId });
 
-const createPost = asyncHandler(async (req, res) => {
-  const { content } = req.body;
-
-  if (!content?.trim()) {
-    throw new ApiError(400, "Post content is required");
-  }
-
-  const imageLocalPath = req.file?.path;
-
-  let imageUpload;
-
-  if (imageLocalPath) {
-    imageUpload = await uploadOnCloudinary(imageLocalPath);
-
-    if (!imageUpload?.url || !imageUpload?.public_id) {
-      throw new ApiError(500, "Failed to upload the image");
-    }
-  }
-
-  let post;
-
-  try {
-    post = await Post.create({
-      content: content.trim(),
-
-      image: imageUpload
-        ? {
-            url: imageUpload.url,
-            publicId: imageUpload.public_id,
-          }
-        : undefined,
-
-      owner: req.user._id,
-    });
-  } catch (error) {
-    console.error("Post creation failed:", error);
-
-    if (imageUpload?.public_id) {
-      try {
-        await deleteFromCloudinary(imageUpload.public_id, "image");
-      } catch (err) {
-        console.error("Image rollback failed:", err);
-      }
-    }
-
-    throw new ApiError(500, "Failed to create post in database");
-  }
-
-  return res
-    .status(201)
-    .json(new ApiResponse(201, post, "Post created successfully"));
-});
-
-const getUserPosts = asyncHandler(async (req, res) => {
-  const { userId } = req.params;
-
-  if (!isValidObjectId(userId)) {
-    throw new ApiError(400, "Invalid user ID");
-  }
-
-  const posts = await Post.find({ owner: userId })
-    .populate("owner", "fullname username avatar")
-    .sort({ createdAt: -1 })
-    .lean();
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, posts, "Posts fetched successfully"));
-});
-
-const updatePost = asyncHandler(async (req, res) => {
-  const { postId } = req.params;
-  const { content } = req.body;
-
-  if (!isValidObjectId(postId)) {
-    throw new ApiError(400, "Invalid post ID");
-  }
-
-  const post = await Post.findById(postId);
-
-  if (!post) {
-    throw new ApiError(404, "Post not found");
-  }
-
-  if (post.owner.toString() !== req.user._id.toString()) {
-    throw new ApiError(403, "You are not authorized to update this post");
-  }
-
-  const imageLocalPath = req.file?.path;
-
-  let imageUpload;
-
-  if (imageLocalPath) {
-    imageUpload = await uploadOnCloudinary(imageLocalPath);
-
-    if (!imageUpload?.url || !imageUpload?.public_id) {
-      throw new ApiError(500, "Failed to upload the new image");
-    }
-  }
-
-  if (content?.trim()) {
-    post.content = content.trim();
-  }
-
-  if (imageUpload) {
-    if (post.image?.publicId) {
-      await deleteFromCloudinary(post.image.publicId, "image");
-    }
-
-    post.image = {
-      url: imageUpload.url,
-      publicId: imageUpload.public_id,
-    };
-  }
-
-  const updatedPost = await post.save();
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, updatedPost, "Post updated successfully"));
-});
-
-const deletePost = asyncHandler(async (req, res) => {
-  const { postId } = req.params;
-
-  if (!isValidObjectId(postId)) {
-    throw new ApiError(400, "Invalid post ID");
-  }
-
-  const post = await Post.findById(postId);
-
-  if (!post) {
-    throw new ApiError(404, "Post not found");
-  }
-
-  if (post.owner.toString() !== req.user._id.toString()) {
-    throw new ApiError(403, "You are not authorized to delete this post");
-  }
-
-  const imagePublicId = post.image?.publicId;
-
-  await post.deleteOne();
-
-  if (imagePublicId) {
-    try {
-      await deleteFromCloudinary(imagePublicId, "image");
-    } catch (error) {
-      console.error("Cloudinary cleanup failed (orphaned file):", error);
-    }
-  }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, null, "Post deleted successfully"));
-});
-
+  await post.deleteOne(); 
+ 
+  if (imagePublicId) { 
+    try { 
+      await deleteFromCloudinary(imagePublicId, "image"); 
+    } catch (error) { 
+      console.error("Cloudinary cleanup failed (orphaned file):", error); 
+    } 
+  } 
+ 
+  return res 
+    .status(200) 
+    .json(new ApiResponse(200, null, "Post deleted successfully")); 
+}); 
+ 
 export { createPost, getUserPosts, updatePost, deletePost };

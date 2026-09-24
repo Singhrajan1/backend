@@ -131,20 +131,24 @@ const removeVideo = asyncHandler(async (req, res) => {
     throw new ApiError(403, "You are not authorized to delete this video");
   }
 
-  try {
-    await deleteFromCloudinary(video.videoFilePublicId, "video");
-
-    await deleteFromCloudinary(video.thumbnailPublicId, "image");
-  } catch (error) {
-    console.error("Cloudinary cleanup failed:", error);
-
-    throw new ApiError(500, "Failed to delete video files from Cloudinary");
-  }
-
   const deletedVideo = await Video.findByIdAndDelete(videoId);
 
   if (!deletedVideo) {
     throw new ApiError(500, "Failed to delete the video from database");
+  }
+
+  try {
+    await deleteFromCloudinary(
+      deletedVideo.videoFilePublicId,
+      "video"
+    );
+
+    await deleteFromCloudinary(
+      deletedVideo.thumbnailPublicId,
+      "image"
+    );
+  } catch (error) {
+    console.error("Cloudinary cleanup failed:", error);
   }
 
   return res
