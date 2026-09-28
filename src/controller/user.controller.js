@@ -58,16 +58,6 @@ const generateAccessAndRefereshTokens = async (userId) => {
 };
 
 const registerUser = asyncHandler(async (req, res) => {
-
-  // TESTING CODE - CONTROLLER REACHED
-  console.log("REGISTER CONTROLLER REACHED");
-
-  // TESTING CODE - CHECK REQUEST BODY
-  console.log("BODY:", req.body);
-
-  // TESTING CODE - CHECK UPLOADED FILES
-  console.log("FILES:", req.files);
-
   const { fullname, email, username, password } = req.body;
 
   if ([fullname, email, username, password].some((field) => !field?.trim())) {
@@ -77,43 +67,12 @@ const registerUser = asyncHandler(async (req, res) => {
     );
   }
 
-  // const existingUser = await User.findOne({
-  //   $or: [
-  //     { email: email.toLowerCase().trim() },
-  //     { username: username.toLowerCase().trim() },
-  //   ],
-  // });
-
-  console.log("STEP 3 - BEFORE USER CHECK");
-
-console.log("MONGOOSE READY STATE:", mongoose.connection.readyState);
-console.log("MONGOOSE HOST:", mongoose.connection.host);
-console.log("DATABASE NAME:", mongoose.connection.name);
-
-console.log("PINGING MONGODB");
-
-await mongoose.connection.db.command({ ping: 1 });
-
-console.log("MONGODB PING SUCCESS");
-
-console.log("CHECKING DATABASE");
-
-const collections = await mongoose.connection.db
-  .listCollections()
-  .toArray();
-
-console.log("DATABASE CHECK SUCCESS");
-console.log(
-  "COLLECTIONS:",
-  collections.map((collection) => collection.name)
-);
-
-console.log("TESTING USER QUERY");
-
-const existingUser = await User.findOne({}).exec();
-
-console.log("USER QUERY FINISHED");
-console.log("EXISTING USER:", existingUser);
+  const existingUser = await User.findOne({
+    $or: [
+      { email: email.toLowerCase().trim() },
+      { username: username.toLowerCase().trim() },
+    ],
+  });
 
   if (existingUser) {
     throw new ApiError(
@@ -123,9 +82,6 @@ console.log("EXISTING USER:", existingUser);
   }
 
   const avatarLocalPath = req.files?.avatar?.[0]?.path;
-
-  // TESTING CODE - CHECK AVATAR LOCAL PATH
-console.log("AVATAR PATH:", avatarLocalPath);
 
   let coverImageLocalPath;
 
@@ -137,19 +93,11 @@ console.log("AVATAR PATH:", avatarLocalPath);
     coverImageLocalPath = req.files.coverImage[0].path;
   }
 
-  // TESTING CODE - CHECK COVER IMAGE LOCAL PATH
-  console.log("COVER PATH:", coverImageLocalPath);
-
   if (!avatarLocalPath) {
     throw new ApiError(400, "Registration failed: Avatar file is required");
   }
 
-  console.log("BEFORE AVATAR PATH");
-
   const avatar = await uploadOnCloudinary(avatarLocalPath);
-
-  // TESTING CODE - CHECK AVATAR CLOUDINARY RESULT
-  console.log("AVATAR UPLOAD RESULT:", avatar);
 
   if (!avatar?.url) {
     throw new ApiError(
@@ -161,14 +109,7 @@ console.log("AVATAR PATH:", avatarLocalPath);
   let coverImage;
 
   if (coverImageLocalPath) {
-
-    // TESTING CODE - COVER CLOUDINARY UPLOAD START
-    console.log("UPLOADING COVER...");
-
     coverImage = await uploadOnCloudinary(coverImageLocalPath);
-
-    // TESTING CODE - CHECK COVER CLOUDINARY RESULT
-    console.log("COVER UPLOAD RESULT:", coverImage);
 
     if (!coverImage?.url) {
       throw new ApiError(
