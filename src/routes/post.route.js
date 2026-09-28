@@ -4,6 +4,7 @@ import { upload } from "../middlewares/multer.middleware.js";
 import {
   createPost,
   getUserPosts,
+  getAllPosts,
   updatePost,
   deletePost,
 } from "../controller/post.controller.js";
@@ -11,6 +12,7 @@ import {
 const router = Router();
 
 router.route("/").post(verifyJWT, upload.single("image"), createPost);
+router.route("/all").get(getAllPosts);
 router.route("/user/:userId").get(getUserPosts); // public — no verifyJWT
 router.route("/:postId")
   .patch(verifyJWT, upload.single("image"), updatePost)

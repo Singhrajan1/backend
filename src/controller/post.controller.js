@@ -77,6 +77,17 @@ const getUserPosts = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, posts, "Posts fetched successfully")); 
 }); 
  
+const getAllPosts = asyncHandler(async (req, res) => {
+  const posts = await Post.find({})
+    .populate("owner", "fullname username avatar")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, posts, "All posts fetched successfully"));
+});
+
 // const updatePost = asyncHandler(async (req, res) => { 
 //   const { postId } = req.params; 
 //   const { content } = req.body; 
@@ -236,4 +247,4 @@ const deletePost = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, null, "Post deleted successfully")); 
 }); 
  
-export { createPost, getUserPosts, updatePost, deletePost };
+export { createPost, getUserPosts, getAllPosts, updatePost, deletePost };
