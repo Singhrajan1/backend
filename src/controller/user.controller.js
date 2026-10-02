@@ -67,16 +67,45 @@ const registerUser = asyncHandler(async (req, res) => {
     );
   }
 
-  const existingEmail = await User.findOne({ email: email.toLowerCase().trim() });
-  if (existingEmail) {
-    throw new ApiError(
-      409,
-      "Registration failed: User with this email already exists",
-    );
-  }
+  // const existingUser = await User.findOne({
+  //   $or: [
+  //     { email: email.toLowerCase().trim() },
+  //     { username: username.toLowerCase().trim() },
+  //   ],
+  // });
 
-  const existingUsername = await User.findOne({ username: username.toLowerCase().trim() });
-  if (existingUsername) {
+  console.log("STEP 3 - BEFORE USER CHECK");
+
+  console.log("MONGOOSE READY STATE:", mongoose.connection.readyState);
+  console.log("MONGOOSE HOST:", mongoose.connection.host);
+  console.log("DATABASE NAME:", mongoose.connection.name);
+
+  console.log("PINGING MONGODB");
+
+  await mongoose.connection.db.command({ ping: 1 });
+
+  console.log("MONGODB PING SUCCESS");
+
+  console.log("CHECKING DATABASE");
+
+  const collections = await mongoose.connection.db
+    .listCollections()
+    .toArray();
+
+  console.log("DATABASE CHECK SUCCESS");
+  console.log(
+    "COLLECTIONS:",
+    collections.map((collection) => collection.name)
+  );
+
+  console.log("TESTING USER QUERY");
+
+  const existingUser = await User.findOne({}).exec();
+
+  console.log("USER QUERY FINISHED");
+  console.log("EXISTING USER:", existingUser);
+
+  if (existingUser) {
     throw new ApiError(
       409,
       "Registration failed: User with this username already exists",
