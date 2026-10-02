@@ -5,8 +5,20 @@ import { ApiError } from "./utils/apiError.js";
 
 const app = express();
 
+const allowedOrigins = [
+    process.env.CORS_ORIGIN,
+    "http://localhost:5173",
+    "http://127.0.0.1:5173"
+].filter(Boolean);
+
 app.use(cors({
-    origin: process.env.CORS_ORIGIN,
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, origin || true);
+        } else {
+            callback(null, origin);
+        }
+    },
     credentials: true
 }));
 
